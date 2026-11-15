@@ -1091,12 +1091,34 @@ interface TmdbImportModalProps {
 
 function TmdbImportModal({ presets, onClose, onImport }: TmdbImportModalProps) {
   const { showToast } = useToast();
+  const [activeCategory, setActiveCategory] = useState<'this_year' | 'now_playing' | 'trending' | 'top_rated'>('this_year');
   const [queryInput, setQueryInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [customList, setCustomList] = useState<any[]>(presets);
 
+  const fetchCategory = async (cat: 'this_year' | 'now_playing' | 'trending' | 'top_rated') => {
+    setActiveCategory(cat);
+    setLoading(true);
+    setQueryInput('');
+    try {
+      const res = await fetch(`/api/tmdb?category=${cat}`);
+      const json = await res.json();
+      if (json.success && json.data) {
+        setCustomList(json.data);
+      }
+    } catch {
+      showToast({ message: '榜单获取失败', type: 'error' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!queryInput.trim()) {
+      fetchCategory(activeCategory);
+      return;
+    }
     setLoading(true);
     try {
       const res = await fetch(`/api/tmdb?q=${encodeURIComponent(queryInput.trim())}`);
@@ -1113,20 +1135,20 @@ function TmdbImportModal({ presets, onClose, onImport }: TmdbImportModalProps) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="relative w-full max-w-2xl bg-cinema-900 border border-white/10 rounded-3xl shadow-2xl overflow-hidden max-h-[85vh] flex flex-col">
+      <div className="relative w-full max-w-2xl bg-cinema-900 border border-white/10 rounded-3xl shadow-2xl overflow-hidden max-h-[88vh] flex flex-col">
         {/* 头部 */}
         <div className="flex items-center justify-between p-5 border-b border-white/10">
           <div className="flex items-center gap-2">
             <DownloadCloud className="w-5 h-5 text-sky-400" />
             <div>
               <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                <span>TMDB 影视元数据自动同步接口</span>
+                <span>TMDB 影视探索与智能导入</span>
                 <span className="text-[10px] bg-sky-500/20 text-sky-300 px-2 py-0.5 rounded-full border border-sky-500/30">
-                  预留接口
+                  支持免片名榜单发现
                 </span>
               </h3>
               <p className="text-xs text-zinc-400">
-                支持通过 TMDB 官方 API 自动抓取中英文标题、高清海报、剧情简介与评分
+                可直接点击查看今年热门、本月院线或实时趋势，无需预先知道电影名字
               </p>
             </div>
           </div>
@@ -1140,29 +1162,67 @@ function TmdbImportModal({ presets, onClose, onImport }: TmdbImportModalProps) {
 
         {/* 主体 */}
         <div className="p-6 space-y-5 overflow-y-auto flex-1 text-xs sm:text-sm">
-          {/* API 说明通知 */}
-          <div className="p-3.5 rounded-2xl bg-sky-500/10 border border-sky-500/20 text-sky-200 space-y-1">
-            <div className="flex items-center gap-1.5 font-bold">
-              <Sparkles className="w-4 h-4 text-sky-400" />
-              <span>接口接入指南</span>
+          {/* 榜单发现快捷切换按钮（无需输片名） */}
+          <div className="space-y-2">
+            <label className="text-xs font-bold text-zinc-300 uppercase tracking-wider flex items-center gap-1.5">
+              <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+              <span>榜单探索（无需输入片名，一键直达热门）</span>
+            </label>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              <button
+                type="button"
+                onClick={() => fetchCategory('this_year')}
+                className={`px-3 py-2 rounded-xl text-xs font-semibold transition-all ${
+                  activeCategory === 'this_year' && !queryInput
+                    ? 'bg-brand text-white shadow-md shadow-brand/25'
+                    : 'bg-white/5 text-zinc-300 hover:bg-white/10 border border-white/5'
+                }`}
+              >
+                📅 今年热门大片
+              </button>
+              <button
+                type="button"
+                onClick={() => fetchCategory('now_playing')}
+                className={`px-3 py-2 rounded-xl text-xs font-semibold transition-all ${
+                  activeCategory === 'now_playing' && !queryInput
+                    ? 'bg-brand text-white shadow-md shadow-brand/25'
+                    : 'bg-white/5 text-zinc-300 hover:bg-white/10 border border-white/5'
+                }`}
+              >
+                🍿 本月院线热映
+              </button>
+              <button
+                type="button"
+                onClick={() => fetchCategory('trending')}
+                className={`px-3 py-2 rounded-xl text-xs font-semibold transition-all ${
+                  activeCategory === 'trending' && !queryInput
+                    ? 'bg-brand text-white shadow-md shadow-brand/25'
+                    : 'bg-white/5 text-zinc-300 hover:bg-white/10 border border-white/5'
+                }`}
+              >
+                🔥 全球实时热度
+              </button>
+              <button
+                type="button"
+                onClick={() => fetchCategory('top_rated')}
+                className={`px-3 py-2 rounded-xl text-xs font-semibold transition-all ${
+                  activeCategory === 'top_rated' && !queryInput
+                    ? 'bg-brand text-white shadow-md shadow-brand/25'
+                    : 'bg-white/5 text-zinc-300 hover:bg-white/10 border border-white/5'
+                }`}
+              >
+                🏆 影史高分榜单
+              </button>
             </div>
-            <p className="text-xs text-sky-300/80 leading-relaxed">
-              系统已预留完整的 TMDB API 请求驱动与数据字段映射。在环境配置文件{' '}
-              <code className="bg-sky-950 px-1 py-0.5 rounded text-white font-mono">
-                .env.local
-              </code>{' '}
-              中填入您的 <code className="text-amber-300 font-mono">TMDB_API_KEY</code>{' '}
-              即可随时连接海量影视库。目前提供热门大片模拟预设，可一键测试导入效果！
-            </p>
           </div>
 
-          {/* 搜索栏 */}
+          {/* 可选关键词搜索栏 */}
           <form onSubmit={handleSearch} className="flex gap-2">
             <input
               type="text"
               value={queryInput}
               onChange={(e) => setQueryInput(e.target.value)}
-              placeholder="输入影视名称（如：奥本海默、流浪地球2、沙丘2）..."
+              placeholder="可选：输入特定影视名称或英文名精确查找..."
               className="flex-1 bg-cinema-950 border border-white/10 rounded-xl px-4 py-2.5 text-zinc-200 focus:outline-none focus:border-sky-500/60"
             />
             <button
@@ -1175,55 +1235,70 @@ function TmdbImportModal({ presets, onClose, onImport }: TmdbImportModalProps) {
             </button>
           </form>
 
-          {/* 预设推荐列表 */}
+          {/* 推荐影视展示列表 */}
           <div className="space-y-3">
-            <h4 className="text-xs font-bold text-zinc-400 uppercase tracking-wider">
-              精选热门影片预设（点击即可一键填入并导入）
-            </h4>
-            <div className="grid grid-cols-1 gap-2.5">
-              {customList.map((item, idx) => (
-                <div
-                  key={idx}
-                  className="flex items-center justify-between p-3 rounded-2xl bg-cinema-950 border border-white/5 hover:border-white/20 transition-all gap-3"
-                >
-                  <div className="flex items-center gap-3 min-w-0">
-                    <div className="w-10 h-14 rounded-lg bg-zinc-900 overflow-hidden shrink-0">
-                      {item.poster_url && (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                          src={item.poster_url}
-                          alt={item.title}
-                          className="w-full h-full object-cover"
-                        />
-                      )}
-                    </div>
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className="font-bold text-white text-sm truncate">
-                          {item.title}
-                        </span>
-                        <span className="text-xs text-amber-400 font-bold">
-                          ⭐ {item.rating}
-                        </span>
-                      </div>
-                      <p className="text-xs text-zinc-500 font-mono truncate">
-                        {item.original_title} ({item.year})
-                      </p>
-                      <p className="text-[11px] text-zinc-400 line-clamp-1 mt-0.5">
-                        {item.overview}
-                      </p>
-                    </div>
-                  </div>
-
-                  <button
-                    onClick={() => onImport(item)}
-                    className="shrink-0 px-3.5 py-1.5 rounded-xl bg-brand hover:bg-brand-hover text-white text-xs font-semibold shadow-md shadow-brand/20 transition-all hover:scale-105"
-                  >
-                    一键导入
-                  </button>
-                </div>
-              ))}
+            <div className="flex items-center justify-between text-xs text-zinc-400">
+              <span className="font-bold uppercase tracking-wider">
+                {queryInput ? `“${queryInput}” 搜索匹配` : '热门发现列表'} ({customList.length} 部)
+              </span>
+              {loading && <span className="text-sky-400 animate-pulse">正在从云端刷新榜单...</span>}
             </div>
+
+            {loading ? (
+              <div className="py-16 text-center text-zinc-500 space-y-2">
+                <div className="w-8 h-8 border-2 border-brand border-t-transparent rounded-full animate-spin mx-auto" />
+                <p className="text-xs">加载最新热门大片中...</p>
+              </div>
+            ) : customList.length === 0 ? (
+              <div className="py-12 text-center text-zinc-500 rounded-2xl bg-white/[0.02] border border-white/5">
+                暂未找到符合条件的影视作品
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 gap-2.5 max-h-80 overflow-y-auto pr-1">
+                {customList.map((item, idx) => (
+                  <div
+                    key={idx}
+                    className="flex items-center justify-between p-3 rounded-2xl bg-cinema-950 border border-white/5 hover:border-white/20 transition-all gap-3"
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="w-11 h-16 rounded-lg bg-zinc-900 overflow-hidden shrink-0 border border-white/10">
+                        {item.poster_url && (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            src={item.poster_url}
+                            alt={item.title}
+                            className="w-full h-full object-cover"
+                          />
+                        )}
+                      </div>
+                      <div className="min-w-0 space-y-0.5">
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-white text-sm truncate">
+                            {item.title}
+                          </span>
+                          <span className="text-xs text-amber-400 font-bold">
+                            ⭐ {item.rating}
+                          </span>
+                        </div>
+                        <p className="text-xs text-zinc-500 font-mono truncate">
+                          {item.original_title} ({item.year || '未知年份'})
+                        </p>
+                        <p className="text-[11px] text-zinc-400 line-clamp-1">
+                          {item.overview}
+                        </p>
+                      </div>
+                    </div>
+
+                    <button
+                      onClick={() => onImport(item)}
+                      className="shrink-0 px-3.5 py-1.5 rounded-xl bg-brand hover:bg-brand-hover text-white text-xs font-semibold shadow-md shadow-brand/20 transition-all hover:scale-105"
+                    >
+                      一键导入
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       </div>
